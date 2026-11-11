@@ -12,7 +12,6 @@ Follow these rules strictly.
 - Core request flow: intercept -> check -> forward or 429
 - Per-second aggregation logic that feeds the dashboard
 - Redis key design (key structure, TTLs)
-- README sections on design decisions, tradeoffs, and results
 
 ## AGENT WRITES THESE
 - Docker Compose, GitHub Actions, project scaffolding, config files
@@ -23,6 +22,7 @@ Follow these rules strictly.
 - Redis client/connection setup (not the logic that uses it)
 - Boilerplate, linting, formatting, .env handling
 - Test harness and scaffolding
+- README sections on design decisions, tradeoffs, and results
 - Never commit `.env`. Only `.env.example` is committed.
 
 ## BOUNDARY RULE
@@ -31,6 +31,9 @@ Follow these rules strictly.
 - Do not make design decisions on my parts.
 - Do not add rate-limiting libraries (express-rate-limit, rate-limiter-flexible, etc.) or Redis rate-limit helper packages to any package.json. The rate limiter must be written from scratch by Mayank.
 - Work only on the milestone I name from ROADMAP.md. Do not start the next one.
+- Docs describe what the design is and why. They must not contain code, pseudocode, or Lua for MAYANK-owned files.
+- Docs 01 and 02 describe implemented code only. Never propose key design, TTLs, Lua logic, or algorithm choices in them.
+- Never invent benchmark numbers. Any number in the README or docs must come from files in loadtest/results/.
 
 ## TODO MARKERS FOR MY PARTS
 - When your code reaches a point that depends on something in the "do not write" list, leave a comment in this format and stop:
@@ -74,10 +77,10 @@ Keep the project small enough to explain. Test for any file or feature: can MAYA
 ├── docker-compose.yml                 # [AGENT] redis, mysql, demo-api, gateway, dashboard
 ├── .github/workflows/ci.yml           # [AGENT] build + test only
 ├── docs/
-│   ├── 00-main-design.md              # [MAYANK] write BEFORE scaffolding; includes benchmark + success criteria
-│   ├── 01-rate-limiting.md            # [MAYANK] sliding-window + keys + Lua + TTLs
-│   ├── 02-failure-behavior.md         # [MAYANK] fail-closed on /login; async logging policy
-│   └── decisions.md                   # [MAYANK]
+│   ├── 00-main-design.md              # [AGENT] drafts (PROPOSED until MAYANK approves); includes benchmark + success criteria
+│   ├── 01-rate-limiting.md            # [AGENT] written after M3 from MAYANK's code (PROPOSED until MAYANK approves)
+│   ├── 02-failure-behavior.md         # [AGENT] written after M4 from MAYANK's code (PROPOSED until MAYANK approves)
+│   └── decisions.md                   # [AGENT] drafts (PROPOSED until MAYANK approves)
 ├── gateway/
 │   ├── package.json / Dockerfile      # [AGENT]
 │   └── src/
@@ -149,7 +152,7 @@ Settled:
 - Blocked-event logging is async and non-blocking (batch/sample).
 - Core failure policy: fail-closed on `/login`. Fail-open on `/videos` is Next (M7).
 
-Pending (Mayank-owned docs):
+Pending (AGENT-drafted, MAYANK-approved docs):
 - `docs/00-main-design.md` must be written before any scaffolding.
 - Async logging policy details (batch size, sample rate, retention days): `docs/02-failure-behavior.md`.
 - Multi-gateway aggregate merge strategy: only needed if the dashboard ever merges across instances; otherwise skip. If needed, it goes in `docs/04-dashboard-data-flow.md`.

@@ -5,10 +5,10 @@ M1-M6 = Core. M7 = Next. Stretch only if MAYANK says so (see AGENTS.md).
 
 At the end of every milestone, the agent must: (a) list what was built, (b) list every TODO(MAYANK) added with file and line, (c) stop.
 
-## M0: Design docs (MAYANK only)
-- MAYANK: writes docs/00-main-design.md, 01-rate-limiting.md, 02-failure-behavior.md, decisions.md.
-- AGENT: nothing. Do not scaffold until docs/00-main-design.md exists.
-- Done when: success criteria in 00-main-design.md have real numbers.
+## M0: Design docs
+- AGENT: drafts docs/00-main-design.md and docs/decisions.md only, from AGENTS.md and ROADMAP.md. Mark both PROPOSED. Propose concrete numbers for the success criteria (limit, attack rate, tolerance, latency).
+- MAYANK: reviews, changes any numbers, approves in chat.
+- Done when: MAYANK says "docs approved". Do not scaffold before that.
 
 ## M1: Scaffold and plumbing
 - AGENT: repo structure per AGENTS.md, .gitignore, .env.example, docker-compose.yml (redis, mysql, demo-api, gateway, dashboard), gateway skeleton (server.js, proxy.js, config.js, redis/client.js), demo-api (login/videos routes, counter, /__stats, /__reset), CI skeleton, and all MAYANK-owned files as stubs with TODO(MAYANK) and throwing placeholders.
@@ -23,11 +23,12 @@ At the end of every milestone, the agent must: (a) list what was built, (b) list
 ## M3: Redis + Lua + request flow
 - MAYANK: Lua script, keys.js, policy.js (route limits), gatewayHandler.js (intercept -> check -> forward or 429).
 - AGENT: nothing beyond the existing Redis client, unless a connection/config fix is requested.
+- AGENT (after MAYANK finishes): writes docs/01-rate-limiting.md describing what MAYANK's code actually does, marked PROPOSED until approved.
 - Done when: over-limit requests get 429 and /__stats on the demo API shows blocked requests never arrived.
 
 ## M4: Failure behavior and logging
-- MAYANK: fail-closed on /login in policy.js and the async logging policy details in 02-failure-behavior.md.
-- AGENT: logging/schema.js, logger.js (async, non-blocking, batch/sample), cleanup.js.
+- MAYANK: fail-closed on /login in policy.js.
+- AGENT: logging/schema.js, logger.js (async, non-blocking, batch/sample), cleanup.js; writes docs/02-failure-behavior.md from the implemented behavior, plus proposed async logging policy details (batch size, sample rate, retention days), marked PROPOSED until approved.
 - Done when: with Redis stopped, /login is rejected, and blocked events land in MySQL without slowing requests.
 
 ## M5: Load test and measured claim
