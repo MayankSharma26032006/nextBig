@@ -30,6 +30,7 @@ Follow these rules strictly.
 - Do not touch files or functions in the "do not write" list, even to fix small bugs or make things compile. Tell me what needs changing and where.
 - Do not make design decisions on my parts.
 - Do not add rate-limiting libraries (express-rate-limit, rate-limiter-flexible, etc.) or Redis rate-limit helper packages to any package.json. The rate limiter must be written from scratch by Mayank.
+- Work only on the milestone I name from ROADMAP.md. Do not start the next one.
 
 ## TODO MARKERS FOR MY PARTS
 - When your code reaches a point that depends on something in the "do not write" list, leave a comment in this format and stop:
@@ -45,14 +46,14 @@ Follow these rules strictly.
 
 Keep the project small enough to explain. Test for any file or feature: can MAYANK explain what it does and why, in two minutes, with no AI open? If not, it is too big or not earned yet — push it down a tier.
 
-### Phase 1 — build first (the project MAYANK can explain in an interview)
+### Core (M1-M6) — build first (the project MAYANK can explain in an interview)
 - One gateway, one algorithm (sliding-window counter), Redis + Lua
 - Demo API with the hit counter
 - One failure policy: fail-closed on `/login`
 - One load test proving the claim, with raw results committed
 - A basic dashboard against that single gateway: TrafficChart + BlockedEvents
 
-### Phase 2 — build second, once Phase 1 works
+### Next (M7) — build second, once Core works
 - 2 gateway instances + nginx, proven by the integration test only (not the dashboard)
 - Fail-open on `/videos` as the second policy
 
@@ -62,7 +63,7 @@ Keep the project small enough to explain. Test for any file or feature: can MAYA
 - Dashboard merging aggregates across instances
 - CI testing of the Redis-down case
 
-## PROJECT STRUCTURE (Phase 1)
+## PROJECT STRUCTURE (Core)
 
 ```
 ./
@@ -80,7 +81,7 @@ Keep the project small enough to explain. Test for any file or feature: can MAYA
 ├── gateway/
 │   ├── package.json / Dockerfile      # [AGENT]
 │   └── src/
-│       ├── server.js                  # [AGENT] express + listen (trust proxy only when Phase 2 adds nginx)
+│       ├── server.js                  # [AGENT] express + listen (trust proxy only when Next (M7) adds nginx)
 │       ├── proxy.js                   # [AGENT]
 │       ├── config.js                  # [AGENT]
 │       ├── socketServer.js            # [AGENT] single-gateway wiring
@@ -110,11 +111,11 @@ Keep the project small enough to explain. Test for any file or feature: can MAYA
 │           └── stats.js               # [AGENT] GET /__stats, POST /__reset
 ├── dashboard/                         # React + Vite [AGENT]
 │   └── src/components/
-│       ├── TrafficChart.jsx           # [AGENT] Phase 1
-│       └── BlockedEvents.jsx          # [AGENT] Phase 1
+│       ├── TrafficChart.jsx           # [AGENT] Core
+│       └── BlockedEvents.jsx          # [AGENT] Core
 ├── loadtest/
-│   ├── login.js                       # [AGENT] Phase 1
-│   ├── videos.js                      # [AGENT] Phase 2
+│   ├── login.js                       # [AGENT] Core
+│   ├── videos.js                      # [AGENT] Next (M7)
 │   └── results/                       # [MAYANK]
 └── tests/
     ├── helpers/                       # [AGENT]
@@ -126,16 +127,16 @@ Keep the project small enough to explain. Test for any file or feature: can MAYA
 - MySQL is the blocked-event store; no TTL index, so `logging/cleanup.js` handles expiry.
 - Only `slidingWindow.js` is stubbed (token bucket is stretch, not scaffolded).
 - `gatewayHandler.js`, `rateLimit/*`, `aggregation/*` are stubs with `// TODO(MAYANK)` plus throwing placeholders.
-- `server.js` adds `trust proxy` only in Phase 2, when nginx sits in front; client-IP resolution logic lives in `keys.js`.
-- `socketServer.js` wires a single gateway in Phase 1. Multi-gateway merging is not required unless the dashboard actually merges instances.
+- `server.js` adds `trust proxy` only in Next (M7), when nginx sits in front; client-IP resolution logic lives in `keys.js`.
+- `socketServer.js` wires a single gateway in Core. Multi-gateway merging is not required unless the dashboard actually merges instances.
 - Test files are Mayank-owned; harness/helpers are agent-owned. Agent only builds what the test files import.
 - `00-main-design.md` must be written before scaffolding code.
-- `RouteActivity` / `TopIps` dashboard panels are optional later additions; they are not in the Phase 1 tree.
+- `RouteActivity` / `TopIps` dashboard panels are optional later additions; they are not in the Core tree.
 
-### Do not scaffold yet (Phase 2 / stretch placement)
+### Do not scaffold yet (Next (M7) / stretch placement)
 These are intentionally absent from the tree above; add them only when the phase is reached:
-- `nginx/nginx.conf` — upstream + `X-Forwarded-For`; Phase 2.
-- `docker-compose.multi.yml` — `+gateway-2 +nginx`; Phase 2.
+- `nginx/nginx.conf` — upstream + `X-Forwarded-For`; Next (M7).
+- `docker-compose.multi.yml` — `+gateway-2 +nginx`; Next (M7).
 - `docs/04-dashboard-data-flow.md` — only if the dashboard ever merges aggregates across instances.
 - `gateway/src/rateLimit/tokenBucket.js` and the algorithm comparison table — stretch.
 - The 2-instance integration test can spawn two gateway processes against one Redis directly, without nginx.
@@ -146,7 +147,7 @@ Settled:
 - Algorithm: sliding-window counter (`slidingWindow.js`); token bucket is a stretch goal, not stubbed now.
 - Blocked-event store: MySQL; no TTL index, so `logging/cleanup.js` handles expiry.
 - Blocked-event logging is async and non-blocking (batch/sample).
-- Phase 1 failure policy: fail-closed on `/login`. Fail-open on `/videos` is Phase 2.
+- Core failure policy: fail-closed on `/login`. Fail-open on `/videos` is Next (M7).
 
 Pending (Mayank-owned docs):
 - `docs/00-main-design.md` must be written before any scaffolding.
