@@ -16,7 +16,7 @@ Follow these rules strictly.
 - React + Vite dashboard and Socket.io wiring
 - Demo API
 - autocannon/k6 scripts
-- MongoDB/MySQL schema and the blocked-request logging layer
+- MySQL schema and the blocked-request logging layer
 - Redis client/connection setup (not the logic that uses it)
 - Boilerplate, linting, formatting, .env handling
 - Test harness and scaffolding
@@ -36,43 +36,60 @@ Follow these rules strictly.
   const result = await checkRateLimit(ip, route); // stub, throws "not implemented"
 - At the end of each task, list every TODO(MAYANK) you added with file and line.
 
-## PROJECT STRUCTURE (final)
+## SCOPE TIERS
+
+Keep the project small enough to explain. Test for any file or feature: can you explain what it does and why, in two minutes, with no AI open? If not, it is too big or not earned yet — push it down a tier.
+
+### Phase 1 — build first (the project you can explain in an interview)
+- One gateway, one algorithm (sliding-window counter), Redis + Lua
+- Demo API with the hit counter
+- One failure policy: fail-closed on `/login`
+- One load test proving the claim, with raw results committed
+- A basic dashboard against that single gateway: TrafficChart + BlockedEvents
+
+### Phase 2 — build second, once Phase 1 works
+- 2 gateway instances + nginx, proven by the integration test only (not the dashboard)
+- Fail-open on `/videos` as the second policy
+
+### Stretch — cut first
+- Second algorithm and the comparison table
+- A third gateway instance
+- Dashboard merging aggregates across instances
+- CI testing of the Redis-down case
+
+## PROJECT STRUCTURE (Phase 1)
 
 ```
-traffic-cop/
+./
 ├── AGENTS.md
 ├── README.md
 ├── .env.example
-├── docker-compose.yml                 # [agent] mysql, demo-api, gateway-1, dashboard
-├── docker-compose.multi.yml           # [agent] +gateway-2 + nginx
-├── .github/workflows/ci.yml           # [agent]
+├── docker-compose.yml                 # [agent] mysql, demo-api, gateway, dashboard
+├── .github/workflows/ci.yml           # [agent] build + test only
 ├── docs/
-│   ├── 00-main-design.md              # [you] write BEFORE scaffolding
+│   ├── 00-main-design.md              # [you] write BEFORE scaffolding; includes benchmark + success criteria
 │   ├── 01-rate-limiting.md            # [you] sliding-window + keys + Lua + TTLs
-│   ├── 02-failure-behavior.md         # [you] fail-open/closed + async logging policy
-│   ├── 03-benchmark-plan.md           # [you]
-│   ├── 04-dashboard-data-flow.md      # [you] per-second agg + multi-gateway merge
+│   ├── 02-failure-behavior.md         # [you] fail-closed on /login; async logging policy
 │   └── decisions.md                   # [you]
-├── nginx/nginx.conf                   # [agent] upstream + X-Forwarded-For
 ├── gateway/
 │   ├── package.json / Dockerfile      # [agent]
-│   ├── src/
-│   │   ├── server.js                  # [agent] trust proxy + express + listen
-│   │   ├── proxy.js                   # [agent]
-│   │   ├── config.js                  # [agent]
-│   │   ├── socketServer.js            # [agent] wiring; merge strategy from doc 04
-│   │   ├── redis/client.js            # [agent] connection only
-│   │   ├── middleware/gatewayHandler.js   # [you]
-│   │   ├── rateLimit/                 # [you]
-│   │   │   ├── slidingWindow.js       # [you] only this one stubbed
-│   │   │   ├── lua/                   # [you]
-│   │   │   ├── keys.js                # [you] key design + TTLs + client-IP resolution
-│   │   │   └── policy.js              # [you] per-route limits + fail-open/closed
-│   │   ├── aggregation/aggregator.js  # [you]
-│   │   └── logging/
-│   │       ├── schema.js              # [agent] MySQL table + indexes
-│   │       ├── logger.js              # [agent] async, non-blocking; batch/sample per doc 02
-│   │       └── cleanup.js             # [agent] periodic delete of old events (MySQL has no TTL)
+│   └── src/
+│       ├── server.js                  # [agent] express + listen (trust proxy only when Phase 2 adds nginx)
+│       ├── proxy.js                   # [agent]
+│       ├── config.js                  # [agent]
+│       ├── socketServer.js            # [agent] single-gateway wiring
+│       ├── redis/client.js            # [agent] connection only
+│       ├── middleware/gatewayHandler.js   # [you]
+│       ├── rateLimit/
+│       │   ├── slidingWindow.js       # [you] only this one stubbed
+│       │   ├── lua/                   # [you]
+│       │   ├── keys.js                # [you] key design + TTLs + client-IP resolution
+│       │   └── policy.js              # [you] per-route limits + fail-closed
+│       ├── aggregation/aggregator.js  # [you]
+│       └── logging/
+│           ├── schema.js              # [agent] MySQL table + indexes
+│           ├── logger.js              # [agent] async, non-blocking; batch/sample
+│           └── cleanup.js             # [agent] periodic delete of old events (MySQL has no TTL)
 │   └── tests/
 │       ├── helpers/                   # [agent] harness utilities
 │       └── (test files are yours)
@@ -86,9 +103,13 @@ traffic-cop/
 │           ├── videos.js
 │           └── stats.js               # [agent] GET /__stats, POST /__reset
 ├── dashboard/                         # React + Vite (agent)
+│   └── src/components/
+│       ├── TrafficChart.jsx           # [agent] Phase 1
+│       └── BlockedEvents.jsx          # [agent] Phase 1
 ├── loadtest/
-│   ├── login.js / videos.js           # [agent]
-│   └── results/                      # [you]
+│   ├── login.js                       # [agent] Phase 1
+│   ├── videos.js                      # [agent] Phase 2
+│   └── results/                       # [you]
 └── tests/
     ├── helpers/                       # [agent]
     └── integration/
@@ -96,17 +117,32 @@ traffic-cop/
 ```
 
 ### Ownership notes for the structure
-- MySQL is the blocked-event store (user chose MySQL over Mongo); no TTL index, so `logging/cleanup.js` handles expiry.
-- Only `slidingWindow.js` is stubbed (token bucket is a stretch goal).
+- MySQL is the blocked-event store; no TTL index, so `logging/cleanup.js` handles expiry.
+- Only `slidingWindow.js` is stubbed (token bucket is stretch, not scaffolded).
 - `gatewayHandler.js`, `rateLimit/*`, `aggregation/*` are stubs with `// TODO(MAYANK)` plus throwing placeholders.
-- `server.js` handles `trust proxy` for nginx's `X-Forwarded-For`; client-IP resolution logic lives in `keys.js`.
-- `socketServer.js` wiring is agent-owned; the multi-gateway merge strategy is defined in `docs/04-dashboard-data-flow.md` (user).
+- `server.js` adds `trust proxy` only in Phase 2, when nginx sits in front; client-IP resolution logic lives in `keys.js`.
+- `socketServer.js` wires a single gateway in Phase 1. Multi-gateway merging is not required unless the dashboard actually merges instances.
 - Test files are user-owned; harness/helpers are agent-owned. Agent only builds what the test files import.
 - `00-main-design.md` must be written before scaffolding code.
+- `RouteActivity` / `TopIps` dashboard panels are optional later additions; they are not in the Phase 1 tree.
 
-## DECISIONS STILL PENDING (user-owned docs)
-- Algorithm: sliding-window counter (decided).
-- Blocked-event store: MySQL (decided).
-- Multi-gateway aggregate merge strategy: define in docs/04-dashboard-data-flow.md.
-- Async logging policy (batch size, sample rate, retention days): define in docs/02-failure-behavior.md.
-- First algorithm stub: slidingWindow.js (decided).
+### Do not scaffold yet (Phase 2 / stretch placement)
+These are intentionally absent from the tree above; add them only when the phase is reached:
+- `nginx/nginx.conf` — upstream + `X-Forwarded-For`; Phase 2.
+- `docker-compose.multi.yml` — `+gateway-2 +nginx`; Phase 2.
+- `docs/04-dashboard-data-flow.md` — only if the dashboard ever merges aggregates across instances.
+- `gateway/src/rateLimit/tokenBucket.js` and the algorithm comparison table — stretch.
+- The 2-instance integration test can spawn two gateway processes against one Redis directly, without nginx.
+
+## DECISIONS
+
+Settled:
+- Algorithm: sliding-window counter (`slidingWindow.js`); token bucket is a stretch goal, not stubbed now.
+- Blocked-event store: MySQL; no TTL index, so `logging/cleanup.js` handles expiry.
+- Blocked-event logging is async and non-blocking (batch/sample).
+- Phase 1 failure policy: fail-closed on `/login`. Fail-open on `/videos` is Phase 2.
+
+Pending (user-owned docs):
+- `docs/00-main-design.md` must be written before any scaffolding.
+- Async logging policy details (batch size, sample rate, retention days): `docs/02-failure-behavior.md`.
+- Multi-gateway aggregate merge strategy: only needed if the dashboard ever merges across instances; otherwise skip. If needed, it goes in `docs/04-dashboard-data-flow.md`.
