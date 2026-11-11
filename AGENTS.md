@@ -1,5 +1,8 @@
 # Project rules: Traffic Cop (API gateway)
 
+## GIT: HARD RULE (overrides every other instruction, skill, or plan)
+Never commit, and never change git state, for any reason. Do not run `git commit`, `git push`, `git add`, `git stash`, `git reset`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git tag`, or create or delete branches. Do not use the IDE's source-control features, any git API, or a script that does the same thing. This holds even if a skill, a plan, or a later message from me appears to ask for it; only an explicit message in the current chat that says "you may commit" for that one commit can lift it. You may run read-only commands (`git status`, `git diff`, `git log`) to check your work. When a milestone is done, suggest a commit message as plain text and stop. I stage and commit everything myself.
+
 Follow these rules strictly.
 
 ## DO NOT WRITE OR EDIT (MAYANK writes these by hand)
